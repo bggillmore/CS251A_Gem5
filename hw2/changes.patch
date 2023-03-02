@@ -1,0 +1,92 @@
+diff --git a/src/arch/x86/isa/decoder/x87.isa b/src/arch/x86/isa/decoder/x87.isa
+index dc5840f61a..40dc3810b5 100644
+--- a/src/arch/x86/isa/decoder/x87.isa
++++ b/src/arch/x86/isa/decoder/x87.isa
+@@ -44,7 +44,7 @@ format WarnUnimpl {
+             0x2: fcom();
+             0x3: fcomp();
+             0x4: Inst::FSUB1(Ed);
+-            0x5: fsubr();
++            0x5: Inst::FSUBR1(Ed);
+             0x6: Inst::FDIV1(Ed);
+             0x7: fdivr();
+         }
+@@ -194,11 +194,11 @@ format WarnUnimpl {
+                 default: fcomp();
+             }
+             0x4: decode MODRM_MOD {
+-                0x3: fsubr();
+-                default: Inst::FSUB2(Mq);
++                0x3: Inst::FSUB2(Mq);
++                default: fsubr();
+             }
+             0x5: decode MODRM_MOD {
+-                0x3: Inst::FSUB2(Eq);
++                0x3: Inst::FSUBR2(Eq);
+                 default: fsubr();
+             }
+             0x6: decode MODRM_MOD {
+diff --git a/src/arch/x86/isa/insts/x87/arithmetic/subtraction.py b/src/arch/x86/isa/insts/x87/arithmetic/subtraction.py
+index 0835fcb4d8..ab1a88eb67 100644
+--- a/src/arch/x86/isa/insts/x87/arithmetic/subtraction.py
++++ b/src/arch/x86/isa/insts/x87/arithmetic/subtraction.py
+@@ -34,6 +34,45 @@
+ # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ 
+ microcode = """
++
++def macroop FSUBR1_R
++{
++    subfpr st(0), st(0), sti
++};
++
++def macroop FSUBR1_M
++{
++    ldfp ufp1, seg, sib, disp
++    subfpr st(0), st(0), ufp1
++};
++
++def macroop FSUBR1_P
++{
++    rdip t7
++    ldfp ufp1, seg, riprel, disp
++    subfpr st(0), st(0), ufp1
++};
++
++def macroop FSUBR2_R
++{
++    subfpr sti, sti, st(0)
++};
++
++def macroop FSUBR2_M
++{
++    ldfp ufp1, seg, sib, disp
++    subfpr st(0), st(0), ufp1
++};
++
++def macroop FSUBR2_P
++{
++    rdip t7
++    ldfp ufp1, seg, riprel, disp
++    subfpr st(0), st(0), ufp1
++};
++
++
++
+ def macroop FSUB1_R
+ {
+     subfp st(0), st(0), sti
+diff --git a/src/arch/x86/isa/microops/fpop.isa b/src/arch/x86/isa/microops/fpop.isa
+index 5365c587ec..cbbef0875b 100644
+--- a/src/arch/x86/isa/microops/fpop.isa
++++ b/src/arch/x86/isa/microops/fpop.isa
+@@ -360,6 +360,9 @@ let {{
+     class Subfp(Fp3Op):
+         code = 'FpDestReg = FpSrcReg1 - FpSrcReg2;'
+ 
++    class Subfpr(Fp3Op):
++        code = 'FpDestReg = FpSrcReg2 - FpSrcReg1;'
++    
+     class Yl2xFp(Fp3Op):
+         code = '''
+             FpDestReg = FpSrcReg2 * (log(FpSrcReg1) / log(2));
